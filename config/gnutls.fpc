@@ -1,0 +1,7 @@
+#cflags: -I$(includes)
+provides_dlib: -lgnutls
+provides_slib: -lgnutls
+
+includes: <gnutls/gnutls.h>
+
+

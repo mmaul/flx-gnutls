@@ -1,0 +1,121 @@
+// -----------------------------------------------------------------------------------------
+// GNUTLS miniwrapper
+
+requires package "gnutls";
+include "std/io/stream";
+include "std/io/socket";
+include "std/io/faio";
+open C_hack;
+open Stream;
+open Socket;
+open Stream::TerminalIOByteStream[Socket::socket_t];
+  
+
+type gnutls_session_t = "gnutls_session_t";
+type gnutls_anon_client_credentials_t = "gnutls_anon_client_credentials_t";
+type gnutls_certificate_credentials_t = "gnutls_certificate_credentials_t";
+typedef credentials_t = typesetof(
+  gnutls_anon_client_credentials_t,
+  gnutls_certificate_credentials_t
+);
+type gnutls_transport_ptr_t = "gnutls_transport_ptr_t";
+typedef transport_ptr_t = typesetof (
+  socket_t,gnutls_transport_ptr_t
+);
+typedef gnutls_log_callback = int*+char --> void;
+
+type gnutls_credentials_type_t = "gnutls_credentials_type_t";
+type gnutls_connection_end_t = "gnutls_connection_end_t";
+type gnutls_close_request_t = "gnutls_close_request_t";
+type gnutls_x509_crt_fmt_t = "gnutls_x509_crt_fmt_t";
+
+const GNUTLS_X509_FMT_PEM: gnutls_x509_crt_fmt_t;
+const GNUTLS_X509_FMT_DER: gnutls_x509_crt_fmt_t;
+const GNUTLS_SHUT_RDWR:gnutls_close_request_t;
+const GNUTLS_SHUT_WR:gnutls_close_request_t;
+const GNUTLS_CLIENT:gnutls_connection_end_t;
+const GNUTLS_CRD_ANON:gnutls_credentials_type_t;
+const GNUTLS_CRD_SRP:gnutls_credentials_type_t;
+const GNUTLS_CRD_CERTIFICATE:gnutls_credentials_type_t;
+const GNUTLS_E_SUCCESS:int;
+
+fun gnutls_global_init: 1->int = "gnutls_global_init ()";
+
+proc gnutls_deinit: gnutls_session_t = "gnutls_deinit ($1);";
+
+/* @args required version
+   @return Actual version */
+fun gnutls_check_version: string->string = "gnutls_check_version($1.c_str())";
+
+fun gnutls_anon_allocate_client_credentials: &gnutls_anon_client_credentials_t->int =
+    "gnutls_anon_allocate_client_credentials ($1)";
+
+fun gnutls_certificate_allocate_credentials: &gnutls_certificate_credentials_t->int = "gnutls_certificate_allocate_credentials ($1)";
+    
+/* @args gnutls_session_t
+         string : priorities
+         error : stinrg*
+address*/
+fun gnutls_priority_set_direct: gnutls_session_t * string * address ->int =
+  "gnutls_priority_set_direct ($1, $2.c_str(), $3)";
+
+/* @args gnu_tls_sesion_t
+         gnutls_credentials_type_t
+         void* cred
+   @return int
+   
+   */
+    // gnutls_credentials_set    gnutls_session_t *  gnutls_credentials_type_t *  gnutls_certificate_credentials_t                                                                               
+
+fun gnutls_credentials_set [T in credentials_t]: gnutls_session_t*gnutls_credentials_type_t*T->int = 
+  "gnutls_credentials_set ($1,$2,$3)"; 
+
+fun gnutls_handshake: gnutls_session_t->int = "gnutls_handshake($1)";
+
+fun gnutls_init: &gnutls_session_t * gnutls_connection_end_t->int = 
+  "gnutls_init($1,$2)";
+
+//transport_ptr_t
+proc gnutls_transport_set_ptr[T in transport_ptr_t]: gnutls_session_t*T = "gnutls_transport_set_ptr ($1,reinterpret_cast <gnutls_transport_ptr_t>($2));";
+
+proc gnutls_perror:int = "gnutls_perror($1);";
+
+fun gnutls_record_send: gnutls_session_t*address*size->ssize =
+  "gnutls_record_send ($1, const_cast<void *>($2),$3)";
+
+fun gnutls_record_recv: gnutls_session_t*address*size->ssize = "gnutls_record_recv ($1,$2,$3)";
+
+fun ssize_to_int:ssize->int = "reinterpret_cast <long>($1)";
+
+fun gnutls_strerror:int->string = "gnutls_strerror ($1)";
+
+fun gnutls_bye:gnutls_session_t * gnutls_close_request_t -> int = "gnutls_bye ($1,$2)";
+
+proc gnutls_anon_free_client_credentials:gnutls_anon_client_credentials_t = "gnutls_anon_free_client_credentials ($1);";
+
+proc gnutls_global_deinit:1 = "gnutls_global_deinit();";
+
+fun gnutls_certificate_set_x509_trust_file: gnutls_certificate_credentials_t * string * gnutls_x509_crt_fmt_t -> int = "gnutls_certificate_set_x509_trust_file ($1, const_cast<char *>($2.c_str()), $3)";
+
+fun xgnutls_certificate_set_x509_trust_file: gnutls_certificate_credentials_t * +char * gnutls_x509_crt_fmt_t -> int = "gnutls_certificate_set_x509_trust_file ($1, const_cast<char *>($2), $3)";
+
+proc gnutls_certificate_free_credentials: gnutls_certificate_credentials_t ="gnutls_certificate_free_credentials ($1);";
+
+fun alloc_gnutls_certificate_credentials_t: 1->&gnutls_certificate_credentials_t = "new gnutls_certificate_credentials_t";
+
+proc gnutls_global_set_log_level: int = "gnutls_global_set_log_level ($1);";
+
+
+proc gnutls_global_set_log_function:1 = "do_set_log_fn();";
+
+header """
+void logit(int l,const char * s) {
+  printf("GNUTLS: %s",s);
+}
+void do_set_log_fn() {
+  gnutls_global_set_log_function (logit);
+} 
+
+""";
+fun gnutls_error_is_fatal:int->int = "gnutls_error_is_fatal ($1)";
+

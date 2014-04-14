@@ -1,0 +1,112 @@
+include "gnutls";
+
+open C_hack;
+open Stream;
+open Socket;
+open Stream::TerminalIOByteStream[Socket::socket_t];
+  
+
+proc ok_or_fail_with (c:int,message:string) {
+  if c != 0 do
+    println$ message;
+    System::exit c;
+  done
+}
+
+//-------------------------------------------------------------------------------------------
+// tcp_connect
+fun tcp_connect(host:string,port:int):socket_t = { 
+  var c: socket_t;
+  connect(&c,_unsafe_cstr(host), port); // connect to localhost
+  return c;  
+}
+  
+proc tcp_close(c:socket_t) {
+  ioclose(c);  // finished with this
+}
+//------------------------------------------------------------------------------------------
+val CAFILE = "/etc/ssl/certs/ca-certificates.crt";
+val msg_x = "GET / HTTP/1.0\r\n\r\n";
+var ip = System::argv 1;
+var port =  int(System::argv 2) ;
+var eof = false;
+
+ok_or_fail_with(gnutls_global_init(),"GnuTLS Global init failed");
+gnutls_global_set_log_level(0);
+gnutls_global_set_log_function();
+
+/* X509 stuff */
+var xcred:gnutls_certificate_credentials_t;
+ok_or_fail_with(gnutls_certificate_allocate_credentials (&xcred),
+  "GnuTLS certificate credential allocation failed");
+
+/* sets the trusted cas file */
+if gnutls_certificate_set_x509_trust_file (xcred, CAFILE, GNUTLS_X509_FMT_PEM) < 1 do
+  ok_or_fail_with(-1,"GnuTLS x509 trust file set failed");
+done
+
+var session:gnutls_session_t;  /* Initialize TLS session */
+ok_or_fail_with(gnutls_init (&session, GNUTLS_CLIENT),"GnuTLS session initialization failed");
+
+ok_or_fail_with(gnutls_priority_set_direct (session, "NORMAL",NULL), "GnuTLS priotiry set direct failed");
+
+/* put the x509 credentials to the current session */
+ok_or_fail_with(gnutls_credentials_set (session, GNUTLS_CRD_CERTIFICATE, xcred),"GnuTLS credential set failed");
+
+/* connect to the peer */
+
+var  sd = tcp_connect(ip,port);
+if Faio_posix::bad_socket(sd) do
+  println$ "TCP connect to " + ip + ":" + port;
+  System::exit(-1);
+done
+
+gnutls_transport_set_ptr$ session, sd;
+
+/* Perform the TLS handshake */
+var ret:int;
+shake:>
+ret = gnutls_handshake (session);
+if (ret < 0) and (gnutls_error_is_fatal(ret) == 0 ) do
+  goto shake;
+elif ret < 0 do
+  println$ "*** Handshake failed";
+  gnutls_perror (ret);
+  goto force_close;
+else
+  println$ "- Handshake was completed";
+done
+
+if int(gnutls_record_send (session, address(_unsafe_cstr(msg_x)), msg_x.len)) < 0 do
+  println$ "Send failed";
+  goto force_close;
+done
+
+var buffer = malloc (1024);
+var retrec:ssize;
+
+readall:>
+retrec = gnutls_record_recv (session, buffer, size(1024));
+if (int(retrec) == 0) do
+  if gnutls_bye (session, GNUTLS_SHUT_RDWR) != GNUTLS_E_SUCCESS do
+    println$ "GnuTLS Bye failed";
+  done
+elif int(retrec) == -110 do
+  //println$ vsprintf("*** Warning: %s\n", gnutls_strerror ((int(retrec))));
+elif (int(retrec) < 0) and (gnutls_error_is_fatal(ret) == 0 ) and (int(retrec) != -28) do
+  println$ vsprintf("*** Error: %s\n", gnutls_strerror ((int(retrec))));
+else
+  var vv = (C_hack::cast[ +char] buffer);
+  for var k in 0 upto (ssize_to_int(retrec) - 1)do
+    print $ get(vv,int(k));
+  done
+  goto readall;
+done
+endl;
+
+force_close:>
+tcp_close (sd);
+gnutls_deinit (session);
+gnutls_certificate_free_credentials(xcred);
+gnutls_global_deinit;
+free buffer;
