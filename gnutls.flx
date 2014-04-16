@@ -2,6 +2,7 @@
 // GNUTLS miniwrapper
 
 requires package "gnutls";
+class GnuTLS {
 include "std/io/stream";
 include "std/io/socket";
 include "std/io/faio";
@@ -29,8 +30,8 @@ type gnutls_connection_end_t = "gnutls_connection_end_t";
 type gnutls_close_request_t = "gnutls_close_request_t";
 type gnutls_x509_crt_fmt_t = "gnutls_x509_crt_fmt_t";
 
-const GNUTLS_X509_FMT_PEM: gnutls_x509_crt_fmt_t;
-const GNUTLS_X509_FMT_DER: gnutls_x509_crt_fmt_t;
+const GNUTLS_X509_FMT_PEM:gnutls_x509_crt_fmt_t;
+const GNUTLS_X509_FMT_DER:gnutls_x509_crt_fmt_t;
 const GNUTLS_SHUT_RDWR:gnutls_close_request_t;
 const GNUTLS_SHUT_WR:gnutls_close_request_t;
 const GNUTLS_CLIENT:gnutls_connection_end_t;
@@ -118,4 +119,4 @@ void do_set_log_fn() {
 
 """;
 fun gnutls_error_is_fatal:int->int = "gnutls_error_is_fatal ($1)";
-
+}

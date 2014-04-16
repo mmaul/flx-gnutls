@@ -7,6 +7,8 @@ Currently gnutls.fpc is oriented towards Unix man need adjustment for OSX and Wi
 
 API
 ---
+Type Class: GnuTLS
+
 type gnutls_session_t
 
 type gnutls_anon_client_credentials_t

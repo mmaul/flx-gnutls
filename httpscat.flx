@@ -4,7 +4,7 @@ open C_hack;
 open Stream;
 open Socket;
 open Stream::TerminalIOByteStream[Socket::socket_t];
-  
+open GnuTLS;  
 
 proc ok_or_fail_with (c:int,message:string) {
   if c != 0 do
