@@ -1,8 +1,9 @@
 flx-gnutls
 ==========
 GnuTLS bindings for felix. Mirrors GnuTLS API for refrence of call behavior refrer to GnuTLS documentaion.
-Currently only functionality requred to access TLS sites and establish envrypted session and communication
-is implemented which is what I need for not. Pull requests welcome if additional functionality is implemented.
+Currently only functionality requred to access TLS sites and establish encrypted sessions and communication
+is implemented which is what I need for now. Certificate verification and TLS server implementation may be 
+implemented in future if need arises. Pull requests welcome if additional functionality is implemented.
 Currently gnutls.fpc is oriented towards Unix man need adjustment for OSX and Windows.
 
 API
